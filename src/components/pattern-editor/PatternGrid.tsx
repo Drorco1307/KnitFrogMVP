@@ -1,8 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { usePatternStore } from '@/store/patternStore';
 import GridCell from './GridCell';
-import StitchPalette from './StitchPalette';
-import ColorPalette from './ColorPalette';
 import Toolbar from './Toolbar';
 import StatusBar from './StatusBar';
 
@@ -12,23 +10,24 @@ export default function PatternGrid() {
   const setSelectedRow = usePatternStore((state) => state.setSelectedRow);
   const addRow = usePatternStore((state) => state.addRow);
   const deleteRow = usePatternStore((state) => state.deleteRow);
-  
+  const needleType = usePatternStore((state) => state.pattern.metadata.needleSize.type);
+
   const [isDragging, setIsDragging] = useState(false);
   const [isRightDragging, setIsRightDragging] = useState(false);
 
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (e.button === 0) {
-      setIsDragging(true);
-    } else if (e.button === 2) {
-      setIsRightDragging(true);
-      e.preventDefault();
-    }
-  };
+  // Circular or DPN means all rows are RS (worked in the round)
+  const isCircularKnitting = needleType === 'circular' || needleType === 'dpn';
 
-  const handleMouseUp = () => {
-    setIsDragging(false);
-    setIsRightDragging(false);
-  };
+  // Global mouse up handler to catch mouse release anywhere
+  useEffect(() => {
+    const handleGlobalMouseUp = () => {
+      setIsDragging(false);
+      setIsRightDragging(false);
+    };
+
+    window.addEventListener('mouseup', handleGlobalMouseUp);
+    return () => window.removeEventListener('mouseup', handleGlobalMouseUp);
+  }, []);
 
   const handleRowNumberClick = (rowNumber: number) => {
     setSelectedRow(selectedRow === rowNumber ? null : rowNumber);
@@ -49,10 +48,8 @@ export default function PatternGrid() {
   };
 
   return (
-    <div 
-      className="flex flex-col h-full"
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
+    <div
+      className="flex flex-col h-full select-none"
       onContextMenu={(e) => e.preventDefault()}
     >
       {/* Toolbar */}
@@ -60,37 +57,36 @@ export default function PatternGrid() {
 
       {/* Grid Container */}
       <div className="flex-1 overflow-auto bg-white rounded-lg shadow-sm border border-border p-8">
-        <div 
-          className="inline-block"
-          onMouseDown={handleMouseDown}
-        >
+        <div className="inline-block">
           {/* Grid */}
           <div className="space-y-0">
             {/* Render rows in reverse order (bottom to top) */}
             {[...rows].reverse().map((row, reversedIndex) => {
               const rowIndex = rows.length - 1 - reversedIndex;
               const isSelected = selectedRow === row.rowNumber;
-              const isRightSide = row.isRightSide;
+              // In circular knitting, all rows are RS; in flat knitting, use row's isRightSide
+              const isRightSide = isCircularKnitting ? true : row.isRightSide;
+              const sideLabel = isCircularKnitting ? 'Rnd' : (isRightSide ? 'RS' : 'WS');
 
               return (
                 <div
                   key={row.rowNumber}
-                  className={`flex items-center gap-2 ${
+                  className={`flex items-center ${
                     isSelected ? 'bg-warning bg-opacity-10' : ''
                   }`}
                 >
-                  {/* Row number on right for RS, left for WS */}
-                  {!isRightSide && (
-                    <div className="flex items-center gap-2">
+                  {/* Left side - Row number for WS (flat knitting only), empty space otherwise */}
+                  <div className="flex items-center mr-1 w-[50px] justify-end">
+                    {!isRightSide ? (
                       <button
                         onClick={() => handleRowNumberClick(row.rowNumber)}
-                        className="w-12 h-8 flex items-center justify-center text-sm font-mono bg-gray-100 hover:bg-gray-200 rounded cursor-pointer transition-colors"
+                        className="h-[24px] px-1.5 flex items-center gap-1 text-xs font-mono bg-gray-100 hover:bg-gray-200 rounded cursor-pointer transition-colors"
                       >
-                        {row.rowNumber}
+                        <span className="font-semibold">{row.rowNumber}</span>
+                        <span className="text-text-secondary">{sideLabel}</span>
                       </button>
-                      <span className="text-xs text-text-secondary w-6">WS</span>
-                    </div>
-                  )}
+                    ) : null}
+                  </div>
 
                   {/* Grid Cells */}
                   <div className="flex">
@@ -103,22 +99,24 @@ export default function PatternGrid() {
                         isDragging={isDragging}
                         isRightDragging={isRightDragging}
                         isRowSelected={isSelected}
+                        setIsDragging={setIsDragging}
+                        setIsRightDragging={setIsRightDragging}
                       />
                     ))}
                   </div>
 
-                  {/* Row number on right for RS */}
-                  {isRightSide && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-text-secondary w-6">RS</span>
+                  {/* Right side - Row number for RS or circular, empty space for WS */}
+                  <div className="flex items-center ml-1 w-[50px]">
+                    {isRightSide ? (
                       <button
                         onClick={() => handleRowNumberClick(row.rowNumber)}
-                        className="w-12 h-8 flex items-center justify-center text-sm font-mono bg-gray-100 hover:bg-gray-200 rounded cursor-pointer transition-colors"
+                        className="h-[24px] px-1.5 flex items-center gap-1 text-xs font-mono bg-gray-100 hover:bg-gray-200 rounded cursor-pointer transition-colors"
                       >
-                        {row.rowNumber}
+                        <span className="text-text-secondary">{sideLabel}</span>
+                        <span className="font-semibold">{row.rowNumber}</span>
                       </button>
-                    </div>
-                  )}
+                    ) : null}
+                  </div>
                 </div>
               );
             })}

@@ -110,7 +110,7 @@ function createEmptyRows(rowCount: number, stitchCount: number): PatternRow[] {
       rowNumber: i + 1,
       stitches: Array(stitchCount).fill(null).map(() => ({
         type: '',
-        colorId: 'MC',
+        colorId: 'none',
       })),
       isRightSide: i % 2 === 0, // Odd rows (1, 3, 5...) are RS
       expectedStitchCount: stitchCount,
@@ -124,16 +124,16 @@ function createEmptyRows(rowCount: number, stitchCount: number): PatternRow[] {
 function createEmptyStitchCell(): StitchCell {
   return {
     type: '',
-    colorId: 'MC',
+    colorId: 'none',
   };
 }
 
-export const usePatternStore = create<PatternStore>((set, get) => ({
+export const usePatternStore = create<PatternStore>((set) => ({
   pattern: createEmptyPattern(),
   
   ui: {
     selectedStitch: 'k',
-    selectedColor: 'MC',
+    selectedColor: 'none',
     selectedRow: null,
     selectedCells: new Set(),
     activeTab: 'grid',
