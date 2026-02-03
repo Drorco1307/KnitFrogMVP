@@ -56,6 +56,9 @@ export const STITCH_EFFECTS: Record<StitchAbbreviation, StitchEffect> = {
   
   // Empty cell
   '': { stitchesConsumed: 0, stitchesCreated: 0, spansCells: 1 },
+
+  // Non-existent cell (for shaping - doesn't count)
+  'no-stitch': { stitchesConsumed: 0, stitchesCreated: 0, spansCells: 1 },
 };
 
 /**

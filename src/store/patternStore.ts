@@ -20,10 +20,10 @@ function generateId(): string {
 interface PatternStore {
   // Pattern data
   pattern: KnittingPattern;
-  
+
   // UI state
   ui: UIState;
-  
+
   // Actions
   setPatternName: (name: string) => void;
   setStitchAt: (rowIndex: number, colIndex: number, stitch: StitchAbbreviation, colorId?: string) => void;
@@ -38,7 +38,9 @@ interface PatternStore {
   clearCellSelection: () => void;
   setActiveTab: (tab: 'grid' | 'text' | '3d') => void;
   updateMetadata: (updates: Partial<KnittingPattern['metadata']>) => void;
+  updateStructure: (updates: Partial<KnittingPattern['structure']>) => void;
   resizeGrid: (width: number, height: number) => void;
+  setRowStitchCount: (rowIndex: number, stitchCount: number) => void;
   loadPattern: (pattern: KnittingPattern) => void;
   resetPattern: () => void;
 }
@@ -77,6 +79,7 @@ function createEmptyPattern(): KnittingPattern {
       direction: 'bottom-up',
       sections: [],
       castOnCount: 20,
+      startsOnRS: true,
     },
     content: {
       rows: createEmptyRows(10, 20),
@@ -356,6 +359,38 @@ export const usePatternStore = create<PatternStore>((set) => ({
     },
   })),
 
+  updateStructure: (updates) => set((state) => {
+    const newStructure = {
+      ...state.pattern.structure,
+      ...updates,
+    };
+
+    // If startsOnRS changed, update all rows' isRightSide
+    let newRows = state.pattern.content.rows;
+    if ('startsOnRS' in updates || 'type' in updates) {
+      const startsOnRS = updates.startsOnRS ?? state.pattern.structure.startsOnRS;
+      const isCircular = (updates.type ?? state.pattern.structure.type) === 'circular';
+
+      newRows = state.pattern.content.rows.map((row, index) => ({
+        ...row,
+        // In circular, all rows are RS; in flat, alternate based on startsOnRS
+        isRightSide: isCircular ? true : (startsOnRS ? index % 2 === 0 : index % 2 !== 0),
+      }));
+    }
+
+    return {
+      pattern: {
+        ...state.pattern,
+        structure: newStructure,
+        content: {
+          ...state.pattern.content,
+          rows: newRows,
+        },
+        updatedAt: new Date(),
+      },
+    };
+  }),
+
   resizeGrid: (width, height) => set((state) => {
     const currentRows = state.pattern.content.rows;
     const newRows: PatternRow[] = [];
@@ -402,6 +437,55 @@ export const usePatternStore = create<PatternStore>((set) => ({
         structure: {
           ...state.pattern.structure,
           castOnCount: width,
+        },
+        updatedAt: new Date(),
+      },
+    };
+  }),
+
+  setRowStitchCount: (rowIndex, stitchCount) => set((state) => {
+    const newRows = [...state.pattern.content.rows];
+    const row = { ...newRows[rowIndex] };
+    const currentStitches = row.stitches;
+    const maxWidth = Math.max(...state.pattern.content.rows.map(r => r.stitches.length));
+
+    if (stitchCount > currentStitches.length) {
+      // Add more stitches
+      const additionalStitches = Array(stitchCount - currentStitches.length)
+        .fill(null)
+        .map(() => createEmptyStitchCell());
+      row.stitches = [...currentStitches, ...additionalStitches];
+    } else if (stitchCount < currentStitches.length) {
+      // Mark extra stitches as no-stitch (keep grid width consistent)
+      row.stitches = currentStitches.map((stitch, idx) => {
+        if (idx >= stitchCount) {
+          return { type: 'no-stitch' as const, colorId: 'none' };
+        }
+        return stitch;
+      });
+    }
+
+    // If this row needs more cells than the grid has, pad all rows
+    if (stitchCount > maxWidth) {
+      newRows.forEach((r, idx) => {
+        if (idx !== rowIndex) {
+          const additionalStitches = Array(stitchCount - r.stitches.length)
+            .fill(null)
+            .map(() => ({ type: 'no-stitch' as const, colorId: 'none' }));
+          newRows[idx] = { ...r, stitches: [...r.stitches, ...additionalStitches] };
+        }
+      });
+    }
+
+    row.expectedStitchCount = stitchCount;
+    newRows[rowIndex] = row;
+
+    return {
+      pattern: {
+        ...state.pattern,
+        content: {
+          ...state.pattern.content,
+          rows: newRows,
         },
         updatedAt: new Date(),
       },

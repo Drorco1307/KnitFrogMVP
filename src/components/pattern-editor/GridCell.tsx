@@ -11,6 +11,10 @@ interface GridCellProps {
   isRowSelected: boolean;
   setIsDragging: (value: boolean) => void;
   setIsRightDragging: (value: boolean) => void;
+  onHover: (rowIndex: number, colIndex: number) => void;
+  onHoverEnd: () => void;
+  isHighlighted: boolean;
+  wouldPlacementOverflow: boolean;
 }
 
 export default function GridCell({
@@ -22,6 +26,10 @@ export default function GridCell({
   isRowSelected,
   setIsDragging,
   setIsRightDragging,
+  onHover,
+  onHoverEnd,
+  isHighlighted,
+  wouldPlacementOverflow,
 }: GridCellProps) {
   const selectedStitch = usePatternStore((state) => state.ui.selectedStitch);
   const selectedColor = usePatternStore((state) => state.ui.selectedColor);
@@ -29,7 +37,13 @@ export default function GridCell({
   const clearCell = usePatternStore((state) => state.clearCell);
   const colorPalette = usePatternStore((state) => state.pattern.content.colorPalette);
 
+  // Check if this is a non-existent cell (for shaping)
+  const isNoStitch = stitch.type === 'no-stitch';
+
   const handleMouseDown = (e: React.MouseEvent) => {
+    // Don't allow interaction with no-stitch cells
+    if (isNoStitch) return;
+
     e.preventDefault();
     e.stopPropagation();
 
@@ -47,6 +61,12 @@ export default function GridCell({
   };
 
   const handleMouseEnter = (e: React.MouseEvent) => {
+    // Always trigger hover for highlighting, even on no-stitch cells
+    onHover(rowIndex, colIndex);
+
+    // Don't allow interaction with no-stitch cells
+    if (isNoStitch) return;
+
     // Check if mouse buttons are pressed during enter
     const leftPressed = (e.buttons & 1) === 1;
     const rightPressed = (e.buttons & 2) === 2;
@@ -58,13 +78,20 @@ export default function GridCell({
     }
   };
 
+  const handleMouseLeave = () => {
+    onHoverEnd();
+  };
+
   // Determine background color
   let backgroundColor: string;
 
   // Check if "no color" is selected (colorId is null, undefined, or 'none')
   const hasNoColor = !stitch.colorId || stitch.colorId === 'none';
 
-  if (stitch.isPartOfCable) {
+  if (isNoStitch) {
+    // Non-existent cell (for shaping) - black background
+    backgroundColor = '#1a1a1a';
+  } else if (stitch.isPartOfCable) {
     // Cable continuation cells
     backgroundColor = '#FFE6F0';
   } else if (hasNoColor || !stitch.type) {
@@ -92,10 +119,39 @@ export default function GridCell({
 
   const textColor = getTextColor(backgroundColor);
 
+  // For no-stitch cells, render a non-interactive black cell
+  if (isNoStitch) {
+    const noStitchHighlightStyle = isHighlighted
+      ? wouldPlacementOverflow
+        ? 'ring-2 ring-red-500 ring-opacity-75'
+        : 'ring-2 ring-primary ring-opacity-75'
+      : '';
+    return (
+      <div
+        className={`w-[30px] h-[30px] border border-gray-800 ${noStitchHighlightStyle}`}
+        style={{ backgroundColor }}
+        title="No stitch"
+        onMouseEnter={() => onHover(rowIndex, colIndex)}
+        onMouseLeave={handleMouseLeave}
+      />
+    );
+  }
+
+  // Determine highlight style - all cells in the placement are the same color
+  // Blue if placement is valid, red if any cell would overflow
+  const getHighlightStyle = () => {
+    if (!isHighlighted) return '';
+    if (wouldPlacementOverflow) {
+      return 'ring-2 ring-red-500 ring-opacity-75 z-20'; // Red for invalid placement
+    }
+    return 'ring-2 ring-primary ring-opacity-75 z-20'; // Blue for valid placement
+  };
+
   return (
     <div
       onMouseDown={handleMouseDown}
       onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
       onContextMenu={(e) => e.preventDefault()}
       className={`
         w-[30px] h-[30px]
@@ -104,9 +160,10 @@ export default function GridCell({
         font-mono text-xs
         cursor-pointer
         transition-all
-        hover:border-primary hover:scale-105 hover:z-10
+        ${!isHighlighted ? 'hover:border-primary hover:scale-105 hover:z-10' : ''}
         ${isRowSelected ? 'ring-2 ring-warning ring-opacity-50' : ''}
         ${stitch.isPartOfCable ? 'cursor-not-allowed opacity-70' : ''}
+        ${getHighlightStyle()}
       `}
       style={{ backgroundColor }}
       title={stitch.type ? `${stitch.type}${stitch.colorId && stitch.colorId !== 'none' ? ` (${stitch.colorId})` : ''}` : 'Empty'}
