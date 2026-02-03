@@ -3,24 +3,129 @@ import { usePatternStore } from '@/store/patternStore';
 export default function Sidebar() {
   const pattern = usePatternStore((state) => state.pattern);
   const updateMetadata = usePatternStore((state) => state.updateMetadata);
+  const updateStructure = usePatternStore((state) => state.updateStructure);
   const resizeGrid = usePatternStore((state) => state.resizeGrid);
 
-  const handleGridResize = () => {
-    const width = prompt('Enter grid width (stitches):', '20');
-    const height = prompt('Enter grid height (rows):', '10');
-    
-    if (width && height) {
-      resizeGrid(parseInt(width), parseInt(height));
-    }
+  const currentWidth = pattern.content.rows[0]?.stitches.filter(s => s.type !== 'no-stitch').length || 0;
+  const currentHeight = pattern.content.rows.length;
+
+  const handleWidthChange = (delta: number) => {
+    const newWidth = Math.max(1, Math.min(200, currentWidth + delta));
+    resizeGrid(newWidth, currentHeight);
+  };
+
+  const handleHeightChange = (delta: number) => {
+    const newHeight = Math.max(1, Math.min(500, currentHeight + delta));
+    resizeGrid(currentWidth, newHeight);
   };
 
   return (
     <aside className="w-80 bg-surface border-r border-border overflow-y-auto">
       <div className="p-6 space-y-6">
+        {/* Knitting Style Section - Most important, at the top */}
+        <section>
+          <h2 className="text-lg font-semibold mb-4">Knitting Style</h2>
+
+          <div className="space-y-3">
+            <div>
+              <label className="block text-sm font-medium mb-1">Working Method</label>
+              <select
+                value={pattern.structure.type}
+                onChange={(e) => updateStructure({ type: e.target.value as 'flat' | 'circular' })}
+                className="input-field w-full"
+              >
+                <option value="flat">Flat (Back & Forth)</option>
+                <option value="circular">In the Round</option>
+              </select>
+            </div>
+
+            {pattern.structure.type === 'flat' && (
+              <div>
+                <label className="block text-sm font-medium mb-1">Row 1 Starts On</label>
+                <select
+                  value={pattern.structure.startsOnRS ? 'rs' : 'ws'}
+                  onChange={(e) => updateStructure({ startsOnRS: e.target.value === 'rs' })}
+                  className="input-field w-full"
+                >
+                  <option value="rs">Right Side (RS)</option>
+                  <option value="ws">Wrong Side (WS)</option>
+                </select>
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* Grid Size Section */}
+        <section>
+          <h2 className="text-lg font-semibold mb-4">Grid Size</h2>
+
+          <div className="space-y-3">
+            {/* Stitch Count (Width) */}
+            <div>
+              <label className="block text-sm font-medium mb-1">Stitches (Width)</label>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleWidthChange(-1)}
+                  className="w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded text-lg font-bold transition-colors"
+                >
+                  −
+                </button>
+                <input
+                  type="number"
+                  value={currentWidth}
+                  onChange={(e) => {
+                    const newWidth = Math.max(1, Math.min(200, parseInt(e.target.value) || 1));
+                    resizeGrid(newWidth, currentHeight);
+                  }}
+                  className="input-field w-20 text-center"
+                  min="1"
+                  max="200"
+                />
+                <button
+                  onClick={() => handleWidthChange(1)}
+                  className="w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded text-lg font-bold transition-colors"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+
+            {/* Row Count (Height) */}
+            <div>
+              <label className="block text-sm font-medium mb-1">Rows (Height)</label>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleHeightChange(-1)}
+                  className="w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded text-lg font-bold transition-colors"
+                >
+                  −
+                </button>
+                <input
+                  type="number"
+                  value={currentHeight}
+                  onChange={(e) => {
+                    const newHeight = Math.max(1, Math.min(500, parseInt(e.target.value) || 1));
+                    resizeGrid(currentWidth, newHeight);
+                  }}
+                  className="input-field w-20 text-center"
+                  min="1"
+                  max="500"
+                />
+                <button
+                  onClick={() => handleHeightChange(1)}
+                  className="w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded text-lg font-bold transition-colors"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* Pattern Info Section */}
         <section>
           <h2 className="text-lg font-semibold mb-4">Pattern Info</h2>
-          
+
           <div className="space-y-3">
             <div>
               <label className="block text-sm font-medium mb-1">Description</label>
@@ -60,26 +165,10 @@ export default function Sidebar() {
           </div>
         </section>
 
-        {/* Grid Size Section */}
-        <section>
-          <h2 className="text-lg font-semibold mb-4">Grid Size</h2>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-sm">Width: {pattern.content.rows[0]?.stitches.length || 0} stitches</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm">Height: {pattern.content.rows.length} rows</span>
-            </div>
-            <button onClick={handleGridResize} className="btn-secondary w-full mt-2">
-              Resize Grid
-            </button>
-          </div>
-        </section>
-
         {/* Gauge Section */}
         <section>
           <h2 className="text-lg font-semibold mb-4">Gauge</h2>
-          
+
           <div className="space-y-3">
             <div>
               <label className="block text-sm font-medium mb-1">Stitches per inch</label>
@@ -112,7 +201,7 @@ export default function Sidebar() {
         {/* Needle Size Section */}
         <section>
           <h2 className="text-lg font-semibold mb-4">Needle Size</h2>
-          
+
           <div className="space-y-3">
             <div>
               <label className="block text-sm font-medium mb-1">US Size</label>
@@ -137,21 +226,6 @@ export default function Sidebar() {
                 })}
                 className="input-field w-full"
               />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">Type</label>
-              <select
-                value={pattern.metadata.needleSize.type || 'straight'}
-                onChange={(e) => updateMetadata({
-                  needleSize: { ...pattern.metadata.needleSize, type: e.target.value as any }
-                })}
-                className="input-field w-full"
-              >
-                <option value="straight">Straight</option>
-                <option value="circular">Circular</option>
-                <option value="dpn">Double Pointed (DPN)</option>
-              </select>
             </div>
           </div>
         </section>

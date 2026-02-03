@@ -90,6 +90,7 @@ export interface PatternStructure {
   joinedInRound?: boolean;
   sections: PatternSection[];
   castOnCount: number;
+  startsOnRS: boolean; // Whether row 1 starts on Right Side
 }
 
 export interface PatternSection {
@@ -128,7 +129,7 @@ export interface StitchCell {
 }
 
 // All supported stitch abbreviations
-export type StitchAbbreviation = 
+export type StitchAbbreviation =
   // Basic
   | 'k' | 'p' | 'sl' | 'sl1'
   // Increases
@@ -137,10 +138,12 @@ export type StitchAbbreviation =
   | 'k2tog' | 'p2tog' | 'ssk' | 'ssp' | 'k3tog' | 'p3tog'
   | 'sssk' | 'cdd' | 'sk2p'
   // Cables
-  | 'c2f' | 'c2b' | 'c3f' | 'c3b' | 'c4f' | 'c4b' 
+  | 'c2f' | 'c2b' | 'c3f' | 'c3b' | 'c4f' | 'c4b'
   | 'c6f' | 'c6b' | 'c8f' | 'c8b'
   // Empty cell
-  | '';
+  | ''
+  // Non-existent cell (for shaping - black, non-interactive)
+  | 'no-stitch';
 
 export interface ColorDefinition {
   id: string;
