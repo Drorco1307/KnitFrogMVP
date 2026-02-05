@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { usePatternStore } from '@/store/patternStore';
 import GridCell from './GridCell';
 import Toolbar from './Toolbar';
@@ -19,6 +19,7 @@ export default function PatternGrid() {
   const [zoomIndex, setZoomIndex] = useState(DEFAULT_ZOOM_INDEX);
   const [hoveredCell, setHoveredCell] = useState<{ row: number; col: number } | null>(null);
 
+  const gridContainerRef = useRef<HTMLDivElement>(null);
   const zoom = ZOOM_LEVELS[zoomIndex];
 
   // Calculate cell span for the selected stitch
@@ -46,6 +47,33 @@ export default function PatternGrid() {
     window.addEventListener('mouseup', handleGlobalMouseUp);
     return () => window.removeEventListener('mouseup', handleGlobalMouseUp);
   }, []);
+
+  // Prevent browser zoom when using Ctrl+Wheel on the grid and handle zoom
+  useEffect(() => {
+    const container = gridContainerRef.current;
+    if (!container) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        // Handle grid zoom
+        if (e.deltaY < 0) {
+          handleZoomIn();
+        } else {
+          handleZoomOut();
+        }
+      }
+    };
+
+    // Use passive: false to allow preventDefault
+    container.addEventListener('wheel', handleWheel, { passive: false });
+
+    return () => {
+      container.removeEventListener('wheel', handleWheel);
+    };
+  }, [zoomIndex]); // Include zoomIndex as dependency so handleZoomIn/Out have current value
 
   const handleRowNumberClick = (rowNumber: number) => {
     setSelectedRow(selectedRow === rowNumber ? null : rowNumber);
@@ -126,17 +154,9 @@ export default function PatternGrid() {
 
       {/* Grid Container */}
       <div
+        ref={gridContainerRef}
         className="flex-1 overflow-auto bg-white rounded-lg shadow-sm border border-border p-8"
-        onWheel={(e) => {
-          if (e.ctrlKey) {
-            e.preventDefault();
-            if (e.deltaY < 0) {
-              handleZoomIn();
-            } else {
-              handleZoomOut();
-            }
-          }
-        }}
+        style={{ touchAction: 'pan-x pan-y' }}
       >
         <div
           className="inline-block origin-top-left transition-transform"
