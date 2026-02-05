@@ -1,6 +1,5 @@
 import { usePatternStore } from '@/store/patternStore';
-import PatternGrid from '@/components/pattern-editor/PatternGrid';
-import TextInputPanel from '@/components/pattern-editor/TextInputPanel';
+import UnifiedEditor from '@/components/pattern-editor/UnifiedEditor';
 
 export default function MainContent() {
   const activeTab = usePatternStore((state) => state.ui.activeTab);
@@ -19,20 +18,9 @@ export default function MainContent() {
                 : 'text-text-secondary hover:text-text-primary'
             }`}
           >
-            Grid Editor
+            Pattern Editor
           </button>
-          
-          <button
-            onClick={() => setActiveTab('text')}
-            className={`px-6 py-3 font-medium transition-colors relative ${
-              activeTab === 'text'
-                ? 'text-primary border-b-2 border-primary'
-                : 'text-text-secondary hover:text-text-primary'
-            }`}
-          >
-            Text Input
-          </button>
-          
+
           <button
             onClick={() => setActiveTab('3d')}
             className={`px-6 py-3 font-medium transition-colors relative ${
@@ -47,9 +35,8 @@ export default function MainContent() {
       </div>
 
       {/* Content Area */}
-      <div className="flex-1 overflow-auto p-6">
-        {activeTab === 'grid' && <PatternGrid />}
-        {activeTab === 'text' && <TextInputPanel />}
+      <div className="flex-1 overflow-hidden">
+        {activeTab === 'grid' && <UnifiedEditor />}
         {activeTab === '3d' && (
           <div className="flex items-center justify-center h-full text-text-secondary">
             3D preview coming soon...

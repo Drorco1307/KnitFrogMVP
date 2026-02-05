@@ -39,6 +39,7 @@ interface PatternStore {
   toggleCellSelection: (rowIndex: number, colIndex: number) => void;
   clearCellSelection: () => void;
   setActiveTab: (tab: 'grid' | 'text' | '3d') => void;
+  toggleAbbreviateRepeats: () => void;
   updateMetadata: (updates: Partial<KnittingPattern['metadata']>) => void;
   updateStructure: (updates: Partial<KnittingPattern['structure']>) => void;
   resizeGrid: (width: number, height: number) => void;
@@ -146,6 +147,7 @@ export const usePatternStore = create<PatternStore>((set) => ({
     showGrid: true,
     cellSize: 30,
     zoom: 1,
+    abbreviateRepeats: false,
   },
 
   setPatternName: (name) => set((state) => ({
@@ -544,6 +546,10 @@ export const usePatternStore = create<PatternStore>((set) => ({
     ui: { ...state.ui, activeTab: tab },
   })),
 
+  toggleAbbreviateRepeats: () => set((state) => ({
+    ui: { ...state.ui, abbreviateRepeats: !state.ui.abbreviateRepeats },
+  })),
+
   updateMetadata: (updates) => set((state) => ({
     pattern: {
       ...state.pattern,
@@ -692,42 +698,39 @@ export const usePatternStore = create<PatternStore>((set) => ({
 
   resetPattern: () => set({ pattern: createEmptyPattern() }),
 
-  setRowFromText: (rowIndex, stitches, textInstruction) => set((state) => {
-    // Get reference to the store itself to call setStitchAt
-    const store = usePatternStore.getState();
+  setRowFromText: (rowIndex, stitches, textInstruction) => {
+    // Clear the row and set text instruction
+    set((state) => {
+      const newRows = [...state.pattern.content.rows];
+      const row = { ...newRows[rowIndex] };
 
-    // Clear the row first
-    const newRows = [...state.pattern.content.rows];
-    const row = { ...newRows[rowIndex] };
+      // Reset all stitches to empty
+      row.stitches = row.stitches.map(() => createEmptyStitchCell());
 
-    // Reset all stitches to empty
-    row.stitches = row.stitches.map(() => createEmptyStitchCell());
+      // Save the text instruction
+      row.textInstruction = textInstruction;
 
-    // Save the text instruction
-    row.textInstruction = textInstruction;
+      newRows[rowIndex] = row;
 
-    newRows[rowIndex] = row;
-
-    // Update state with cleared row
-    const clearedState = {
-      pattern: {
-        ...state.pattern,
-        content: {
-          ...state.pattern.content,
-          rows: newRows,
+      return {
+        pattern: {
+          ...state.pattern,
+          content: {
+            ...state.pattern.content,
+            rows: newRows,
+          },
+          updatedAt: new Date(),
         },
-        updatedAt: new Date(),
-      },
-    };
-
-    // Apply the new state
-    set(clearedState);
+      };
+    });
 
     // Now place each stitch sequentially using setStitchAt
     // This ensures proper cable handling and stitch effect calculations
+    const store = usePatternStore.getState();
     let colIndex = 0;
     for (const stitch of stitches) {
-      if (colIndex >= row.stitches.length) break;
+      const currentRow = store.pattern.content.rows[rowIndex];
+      if (colIndex >= currentRow.stitches.length) break;
 
       // Call setStitchAt to place the stitch
       store.setStitchAt(rowIndex, colIndex, stitch.type, stitch.colorId || 'none');
@@ -736,8 +739,5 @@ export const usePatternStore = create<PatternStore>((set) => ({
       const effect = getStitchEffect(stitch.type);
       colIndex += effect.spansCells;
     }
-
-    // Return the final state (will be updated by setStitchAt calls)
-    return state;
-  }),
+  },
 }));

@@ -152,11 +152,31 @@ function parseToken(
     if (lastPart === 'twice' || lastPart.startsWith('twice')) {
       repeatCount = 2;
       tokenWithoutRepeat = parts.slice(0, -1).join(' ');
+
+      // Check if the stitch is k or p (without color)
+      const stitchToCheck = tokenWithoutRepeat.toLowerCase();
+      if (stitchToCheck === 'k' || stitchToCheck === 'p') {
+        errors.push({
+          message: `Use numeric notation for basic stitches: "${stitchToCheck}2" instead of "${stitchToCheck} twice"`,
+          token,
+        });
+        return { success: false, stitches: [], errors, warnings, repeatCount };
+      }
     } else if (lastPart.startsWith('x')) {
       const match = lastPart.match(/^x(\d+)/);
       if (match) {
         repeatCount = parseInt(match[1], 10);
         tokenWithoutRepeat = parts.slice(0, -1).join(' ');
+
+        // Check if the stitch is k or p (without color)
+        const stitchToCheck = tokenWithoutRepeat.toLowerCase();
+        if (stitchToCheck === 'k' || stitchToCheck === 'p') {
+          errors.push({
+            message: `Use numeric notation for basic stitches: "${stitchToCheck}${repeatCount}" instead of "${stitchToCheck} x${repeatCount}"`,
+            token,
+          });
+          return { success: false, stitches: [], errors, warnings, repeatCount };
+        }
       }
     }
   }

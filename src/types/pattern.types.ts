@@ -260,4 +260,5 @@ export interface UIState {
   showGrid: boolean;
   cellSize: number;
   zoom: number;
+  abbreviateRepeats: boolean; // Whether to show abbreviated repeat patterns in text view
 }
