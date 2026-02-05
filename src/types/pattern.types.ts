@@ -223,6 +223,32 @@ export interface ValidationError {
   type: 'invalid-stitch' | 'cable-overflow' | 'other';
 }
 
+// ===== TEXT PARSER =====
+
+export interface ParseResult {
+  success: boolean;
+  stitches: ParsedStitch[];
+  errors: ParseError[];
+  warnings: ParseWarning[];
+  totalStitchCount: number;
+}
+
+export interface ParsedStitch {
+  type: StitchAbbreviation;
+  colorId?: string;
+}
+
+export interface ParseError {
+  message: string;
+  token?: string;
+  position?: number;
+}
+
+export interface ParseWarning {
+  message: string;
+  type: 'stitch-count' | 'unknown-color' | 'stitch-effect';
+}
+
 // ===== UI STATE =====
 
 export interface UIState {
