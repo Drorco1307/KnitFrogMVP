@@ -1,5 +1,6 @@
 import { usePatternStore } from '@/store/patternStore';
 import PatternGrid from '@/components/pattern-editor/PatternGrid';
+import TextInputPanel from '@/components/pattern-editor/TextInputPanel';
 
 export default function MainContent() {
   const activeTab = usePatternStore((state) => state.ui.activeTab);
@@ -48,11 +49,7 @@ export default function MainContent() {
       {/* Content Area */}
       <div className="flex-1 overflow-auto p-6">
         {activeTab === 'grid' && <PatternGrid />}
-        {activeTab === 'text' && (
-          <div className="flex items-center justify-center h-full text-text-secondary">
-            Text input panel coming soon...
-          </div>
-        )}
+        {activeTab === 'text' && <TextInputPanel />}
         {activeTab === '3d' && (
           <div className="flex items-center justify-center h-full text-text-secondary">
             3D preview coming soon...

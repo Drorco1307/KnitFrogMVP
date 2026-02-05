@@ -4,7 +4,8 @@ import {
   StitchAbbreviation,
   StitchCell,
   PatternRow,
-  UIState
+  UIState,
+  ParsedStitch
 } from '@/types/pattern.types';
 import { DEFAULT_COLORS } from '@/utils/stitchData';
 import { getStitchEffect } from '@/utils/stitchEffects';
@@ -44,6 +45,7 @@ interface PatternStore {
   setRowStitchCount: (rowIndex: number, stitchCount: number) => void;
   loadPattern: (pattern: KnittingPattern) => void;
   resetPattern: () => void;
+  setRowFromText: (rowIndex: number, stitches: ParsedStitch[], textInstruction: string) => void;
 }
 
 // Helper to create empty pattern
@@ -689,4 +691,53 @@ export const usePatternStore = create<PatternStore>((set) => ({
   loadPattern: (pattern) => set({ pattern }),
 
   resetPattern: () => set({ pattern: createEmptyPattern() }),
+
+  setRowFromText: (rowIndex, stitches, textInstruction) => set((state) => {
+    // Get reference to the store itself to call setStitchAt
+    const store = usePatternStore.getState();
+
+    // Clear the row first
+    const newRows = [...state.pattern.content.rows];
+    const row = { ...newRows[rowIndex] };
+
+    // Reset all stitches to empty
+    row.stitches = row.stitches.map(() => createEmptyStitchCell());
+
+    // Save the text instruction
+    row.textInstruction = textInstruction;
+
+    newRows[rowIndex] = row;
+
+    // Update state with cleared row
+    const clearedState = {
+      pattern: {
+        ...state.pattern,
+        content: {
+          ...state.pattern.content,
+          rows: newRows,
+        },
+        updatedAt: new Date(),
+      },
+    };
+
+    // Apply the new state
+    set(clearedState);
+
+    // Now place each stitch sequentially using setStitchAt
+    // This ensures proper cable handling and stitch effect calculations
+    let colIndex = 0;
+    for (const stitch of stitches) {
+      if (colIndex >= row.stitches.length) break;
+
+      // Call setStitchAt to place the stitch
+      store.setStitchAt(rowIndex, colIndex, stitch.type, stitch.colorId || 'none');
+
+      // Advance by stitch span (cables take multiple cells)
+      const effect = getStitchEffect(stitch.type);
+      colIndex += effect.spansCells;
+    }
+
+    // Return the final state (will be updated by setStitchAt calls)
+    return state;
+  }),
 }));
